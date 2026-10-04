@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>వాతావరణం</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1f6f8b">
+<style>
+:root{--top:#1f6f8b;--bot:#a8dadc;--ink:#fff;--glass:rgba(255,255,255,.18)}
+body.night{--top:#0f1b3d;--bot:#3a4a7a}
+body.rain{--top:#3b4a57;--bot:#8fa3b0}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{font-family:system-ui,"Noto Sans Telugu","Nirmala UI",sans-serif;color:var(--ink);
+background:linear-gradient(180deg,var(--top),var(--bot)) fixed;transition:background .6s;
+padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+main{max-width:480px;margin:0 auto}
+form{display:flex;gap:8px}
+input{flex:1;min-width:0;padding:12px 14px;border:0;border-radius:12px;font-size:16px;background:var(--glass);color:var(--ink)}
+input::placeholder{color:rgba(255,255,255,.75)}
+button{border:0;border-radius:12px;padding:0 14px;font-size:18px;background:var(--glass);color:var(--ink);cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#now{text-align:center;padding:36px 0 24px}
+#city{font-size:22px;font-weight:600}
+#temp{font-size:96px;font-weight:200;line-height:1.1}
+#icon{font-size:56px}
+#desc{font-size:18px;opacity:.9}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.grid div{background:var(--glass);border-radius:14px;padding:12px 8px;text-align:center}
+.grid b{display:block;font-size:20px;margin-top:4px}
+.grid span{font-size:13px;opacity:.85}
+h2{font-size:16px;margin:0 0 8px;font-weight:600}
+.day{display:flex;align-items:center;justify-content:space-between;background:var(--glass);border-radius:14px;padding:10px 14px;margin-bottom:8px}
+.day span:first-child{width:84px}
+.day .ic{font-size:24px}
+#msg{text-align:center;padding:8px;min-height:1.5em;font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<form id="f"><input id="q" placeholder="నగరం పేరు వెతకండి" aria-label="నగరం పేరు"><button aria-label="వెతుకు">🔍</button><button type="button" id="loc" aria-label="నా ప్రదేశం">📍</button></form>
+<p id="msg"></p>
+<section id="now" hidden>
+<div id="city"></div><div id="icon"></div><div id="temp"></div><div id="desc"></div>
+</section>
+<section class="grid" id="stats" hidden></section>
+<section id="days" hidden><h2>రాబోయే 5 రోజులు</h2><div id="list"></div></section>
+</main>
+<script>
+const W={0:["☀️","నిర్మలమైన ఆకాశం"],1:["🌤️","చాలావరకు ఎండ"],2:["⛅","కొంచెం మబ్బులు"],3:["☁️","మేఘావృతం"],45:["🌫️","పొగమంచు"],48:["🌫️","పొగమంచు"],51:["🌦️","చిరుజల్లులు"],53:["🌦️","చిరుజల్లులు"],55:["🌦️","చిరుజల్లులు"],61:["🌧️","తేలికపాటి వర్షం"],63:["🌧️","వర్షం"],65:["🌧️","భారీ వర్షం"],80:["🌦️","జల్లులు"],81:["🌧️","వర్షపు జల్లులు"],82:["⛈️","భారీ జల్లులు"],95:["⛈️","ఉరుములతో వర్షం"],96:["⛈️","వడగళ్ల వాన"],99:["⛈️","వడగళ్ల వాన"]};
+const $=id=>document.getElementById(id);
+const info=c=>W[c]||["🌡️","వాతావరణం"];
+const msg=t=>$("msg").textContent=t||"";
+
+async function load(lat,lon,name){
+  msg("లోడ్ అవుతోంది…");
+  try{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+    const d=await (await fetch(u)).json();
+    const c=d.current,[ic,ds]=info(c.weather_code);
+    $("city").textContent=name;$("icon").textContent=ic;
+    $("temp").textContent=Math.round(c.temperature_2m)+"°";$("desc").textContent=ds;
+    $("stats").innerHTML=`<div><span>అనిపించేది</span><b>${Math.round(c.apparent_temperature)}°</b></div><div><span>తేమ</span><b>${c.relative_humidity_2m}%</b></div><div><span>గాలి</span><b>${Math.round(c.wind_speed_10m)} కిమీ/గం</b></div>`;
+    $("list").innerHTML=d.daily.time.slice(1,6).map((t,i)=>{
+      const k=i+1,dt=new Date(t).toLocaleDateString("te-IN",{weekday:"short",day:"numeric",month:"short"});
+      return `<div class="day"><span>${dt}</span><span class="ic">${info(d.daily.weather_code[k])[0]}</span><span>💧${d.daily.precipitation_probability_max[k]??0}%</span><span>${Math.round(d.daily.temperature_2m_max[k])}° / ${Math.round(d.daily.temperature_2m_min[k])}°</span></div>`}).join("");
+    document.body.className=!c.is_day?"night":(c.weather_code>=51?"rain":"");
+    ["now","stats","days"].forEach(i=>$(i).hidden=false);
+    localStorage.setItem("last",JSON.stringify({lat,lon,name}));msg("");
+  }catch(e){msg("డేటా తీసుకురాలేకపోయాం. ఇంటర్నెట్ చూసి మళ్లీ ప్రయత్నించండి.")}
+}
+async function search(q){
+  msg("వెతుకుతోంది…");
+  try{
+    const r=await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en`)).json();
+    if(!r.results)return msg("ఆ నగరం దొరకలేదు. ఇంగ్లీష్ స్పెల్లింగ్ తో ప్రయత్నించండి.");
+    const p=r.results[0];load(p.latitude,p.longitude,p.name);
+  }catch(e){msg("వెతకలేకపోయాం. ఇంటర్నెట్ చూడండి.")}
+}
+$("f").onsubmit=e=>{e.preventDefault();const q=$("q").value.trim();if(q)search(q)};
+$("loc").onclick=()=>{
+  if(!navigator.geolocation)return msg("ఈ ఫోన్ లో లొకేషన్ అందుబాటులో లేదు.");
+  msg("మీ ప్రదేశం కనుగొంటోంది…");
+  navigator.geolocation.getCurrentPosition(p=>load(p.coords.latitude,p.coords.longitude,"నా ప్రదేశం"),()=>msg("లొకేషన్ అనుమతి ఇవ్వండి."));
+};
+let last;try{last=JSON.parse(localStorage.getItem("last"))}catch(e){}
+last?load(last.lat,last.lon,last.name):load(17.385,78.4867,"Hyderabad");
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
